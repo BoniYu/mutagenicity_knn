@@ -18,9 +18,60 @@ Dataset source: [MLCE_book repository](https://github.com/edgarsmdn/MLCE_book).
    k-fold cross-validation; evaluate with leave-one-out CV.
 3. **Extend to regression** — bioconcentration factor (BCF) prediction,
    using the same workflow.
-4. **Further extensions (TBD)** — e.g. RDKit-generated descriptors instead
-   of precomputed ones, a different chem-eng-relevant target property,
-   model comparison beyond kNN, deployment as an interactive tool.
+4. **Model comparison** — kNN vs Logistic Regression, Random Forest and XGBoost.
+5. **Further extensions (planned)** — applicability domain check, RDKit
+   descriptor calculation from SMILES, and deployment as a Streamlit app.
+
+## Why this project
+
+Mutagenicity is a key endpoint in chemical safety and regulatory assessment
+(e.g. under REACH), where validated (Q)SAR predictions can support or replace
+experimental testing. This project builds and compares interpretable ML models
+for this endpoint.
+
+## Dataset
+
+- 5,764 molecules from the Ames mutagenicity dataset (Hansen et al. 2009 benchmark
+  merged with the Japan Health Ministry Ames (Q)SAR project data).
+- **Features:** 8 precomputed descriptors: `NumValenceElectrons`, `qed`, `TPSA`,
+  `MolMR`, `BalabanJ`, `BertzCT`, `MolWt`, `MolLogP`.
+- **Target:** `Experimental value` (1 = mutagenic, 0 = non-mutagenic).
+- **Cleaning:** 6 rows where VEGA returned "Non Predicted" were removed,
+  leaving 5,758 molecules.
+- **Class balance:** about 56.4% mutagenic and 43.6% non-mutagenic.
+
+## Methodology
+
+- Features standardised with `StandardScaler`, fit on training data only.
+- Models compared: kNN, Logistic Regression, Random Forest, XGBoost.
+- k for kNN tuned with 10-fold cross-validation.
+- kNN also assessed with leave-one-out CV, to compare on equal footing with
+  VEGA, whose developers used the same protocol.
+- All four models compared with stratified 10-fold CV, reporting mean ± std
+  for accuracy, F1 and ROC-AUC.
+- Benchmark: VEGA kNN reaches accuracy 0.800 and F1 0.824 on this dataset.
+
+## Results
+
+*(To be filled in.)*
+
+| Model | Accuracy | F1 | ROC-AUC |
+|---|---|---|---|
+| kNN (k = ?) | | | |
+| Logistic Regression | | | |
+| Random Forest | | | |
+| XGBoost | | | |
+| VEGA kNN (benchmark) | 0.800 | 0.824 | n/a |
+
+## Limitations
+
+- VEGA's metrics cover the whole dataset and VEGA has effectively seen these
+  molecules, so it is a benchmark to aim for rather than a strict like-for-like
+  comparison.
+- Only 8 generic descriptors are used; local reactive substructures that drive
+  mutagenicity are not captured directly.
+- Single-split results vary by a few points with the random seed, hence the
+  use of cross-validation for the final comparison.
 
 ## Project structure
 data/ raw datasets
