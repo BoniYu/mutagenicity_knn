@@ -116,3 +116,48 @@ limiting kNN's ceiling.
   VEGA, or is the descriptor set now the binding constraint?
 - Feature importances (Random Forest, XGBoost) vs. Logistic Regression
   coefficients — do they agree on which descriptors matter most?  
+
+## XGBoost hyperparameter tuning
+
+Tuned via `RandomizedSearchCV` (25 iterations, stratified 10-fold CV,
+optimizing F1) over `n_estimators`, `max_depth`, `learning_rate`,
+`subsample`, `colsample_bytree`, `reg_alpha`, `reg_lambda`.
+
+| | Accuracy | F1 | ROC-AUC |
+|---|---|---|---|
+| XGBoost (default) | 0.738 ± 0.014 | 0.774 ± 0.016 | 0.805 ± 0.017 |
+| XGBoost (tuned) | 0.743 ± 0.018 | 0.775 ± 0.015 | 0.806 ± 0.018 |
+| Random Forest (default) | **0.748 ± 0.010** | **0.779 ± 0.010** | **0.820 ± 0.015** |
+
+Tuning gave a small, real improvement over XGBoost's own default (F1 0.774 →
+0.775), but the tuned model still didn't reach Random Forest's default
+performance on any metric, and its fold-to-fold variance was slightly wider
+than the untuned version, not tighter.
+
+## Why Random Forest is not tuned further
+
+Random Forest is kept at default hyperparameters, for two reasons:
+
+1. **Its variance at default is already low** (±0.010 accuracy across folds,
+   the tightest of all models tested), which suggests it's already close to
+   what this descriptor set and model family can extract, further tuning
+   (mainly `n_estimators`, `max_depth`, `min_samples_leaf`) has little
+   variance left to reduce.
+2. **A real tuning effort on its closest competitor didn't beat it.** XGBoost
+   was tuned via a 25-iteration randomized search (250 fits) over its most
+   impactful hyperparameters, and still fell short of Random Forest's
+   untuned result on every metric. This is treated as sufficient evidence
+   that ~0.748 accuracy / ~0.779 F1 is close to the practical ceiling for
+   tree-ensemble models on these 8 descriptors, rather than an artifact of
+   insufficient tuning.
+
+**Conclusion: Random Forest (default hyperparameters) is the final model**,
+used going forward for the RDKit/SMILES prediction layer.
+
+## Remaining open questions
+
+- Would a richer feature set (e.g. RDKit fingerprints, rather than the 8
+  precomputed descriptors) raise this ceiling, or is ~0.75-0.78 close to
+  what's achievable on this dataset regardless of features?
+- Feature importances (Random Forest) vs. Logistic Regression coefficients —
+  do they agree on which descriptors matter most?  
