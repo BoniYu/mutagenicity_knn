@@ -53,15 +53,16 @@ for this endpoint.
 
 ## Results
 
-*(To be filled in.)*
-
 | Model | Accuracy | F1 | ROC-AUC |
 |---|---|---|---|
-| kNN (k = ?) | | | |
-| Logistic Regression | | | |
-| Random Forest | | | |
-| XGBoost | | | |
+| kNN (k = 24) | 0.709 ± 0.026 | 0.748 ± 0.023 | 0.770 ± 0.022 |
+| Logistic Regression | 0.652 ± 0.023 | 0.710 ± 0.020 | 0.713 ± 0.022 |
+| **Random Forest (final model)** | **0.748 ± 0.010** | **0.779 ± 0.010** | **0.820 ± 0.015** |
+| XGBoost (tuned) | 0.743 ± 0.018 | 0.775 ± 0.015 | 0.806 ± 0.018 |
 | VEGA kNN (benchmark) | 0.800 | 0.824 | n/a |
+
+Random Forest, at default hyperparameters, was selected as the final model.
+
 
 ## Limitations
 
@@ -91,4 +92,13 @@ pip install -r requirements.txt
 
 ## Status
 
-🚧 In progress — currently replicating the base tutorial.
+✅ Classification phase complete — Random Forest selected as final model.
+🚧 Next: RDKit/SMILES prediction layer, then BCF regression extension.
+
+See [`Report.md`](Report.md) for detailed methodology and results.
+
+## Trained model
+
+The trained model (`models/best_classifier.pkl`) and descriptor column
+order (`models/descriptor_columns.json`) are not tracked in git. To
+regenerate them, run `notebooks/02_classification_models.ipynb` end to end.
