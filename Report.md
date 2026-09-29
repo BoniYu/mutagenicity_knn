@@ -1,14 +1,28 @@
 # Report: Mutagenicity QSPR — kNN Baseline
 
-## Data
+## Dataset
 
-- 5,764 molecules from the Ames mutagenicity dataset (Hansen et al. 2009 benchmark
-  merged with the Japan Health Ministry Ames (Q)SAR project).
-- 8 precomputed descriptors: `NumValenceElectrons`, `qed`, `TPSA`, `MolMR`,
-  `BalabanJ`, `BertzCT`, `MolWt`, `MolLogP`.
-- Target: `Experimental value` (1 = mutagenic, 0 = non-mutagenic).
-- 6 rows where VEGA returned "Non Predicted" were dropped, leaving 5,758 molecules.
-- Class balance: 56.4% mutagenic, 43.6% non-mutagenic.
+- 5,764 molecules from the Ames mutagenicity dataset (Hansen et al. 2009
+  benchmark merged with the Japan Health Ministry Ames (Q)SAR project).
+- **Features:** 8 precomputed descriptors: `NumValenceElectrons`, `qed`,
+  `TPSA`, `MolMR`, `BalabanJ`, `BertzCT`, `MolWt`, `MolLogP`.
+- **Target:** `Experimental value` (1 = mutagenic, 0 = non-mutagenic).
+- **Cleaning:** 6 rows where VEGA returned "Non Predicted" were removed,
+  leaving 5,758 molecules.
+- **Class balance:** about 56.4% mutagenic and 43.6% non-mutagenic.
+
+## Methodology
+
+- Features standardised with `StandardScaler`, fit on training data only
+  (or per fold, for cross-validated evaluations).
+- Models compared: kNN, Logistic Regression, Random Forest, XGBoost.
+- k for kNN selected via 10-fold cross-validation.
+- kNN also assessed with leave-one-out CV, to compare on equal footing with
+  VEGA, whose developers used the same protocol.
+- All four models compared with stratified 10-fold CV, reporting mean ± std
+  for accuracy, F1 and ROC-AUC.
+- XGBoost additionally tuned via `RandomizedSearchCV`.
+- Benchmark: VEGA kNN reaches accuracy 0.800 and F1 0.824 on this dataset.
 
 ## VEGA benchmark
 
