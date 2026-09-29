@@ -73,12 +73,7 @@ for this endpoint.
 - Single-split results vary by a few points with the random seed, hence the
   use of cross-validation for the final comparison.
 
-## Project structure
-data/ raw datasets
-notebooks/ exploratory and modeling notebooks
-src/ reusable scripts (data download, preprocessing, modeling)
-models/ saved trained models
-reports/ figures, writeups, results
+
 
 
 ## Setup
