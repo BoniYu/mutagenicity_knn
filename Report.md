@@ -76,3 +76,43 @@ structural detail than these 8 descriptors do.
 - Is the ~70% ceiling a property of the descriptor set (testable later with
   RDKit-derived fingerprints), or a limit of what any model can extract from
   this feature set?
+
+## Model comparison (stratified 10-fold CV, default hyperparameters)
+
+All models used the same 8 descriptors, standardised with `StandardScaler`
+inside a `Pipeline` (fit per fold to avoid leakage). kNN used k=24, the value
+selected by the earlier CV sweep.
+
+| Model | Accuracy | F1 | ROC-AUC |
+|---|---|---|---|
+| kNN (k=24) | 0.709 ± 0.026 | 0.748 ± 0.023 | 0.770 ± 0.022 |
+| Logistic Regression | 0.652 ± 0.023 | 0.710 ± 0.020 | 0.713 ± 0.022 |
+| Random Forest | **0.748 ± 0.010** | **0.779 ± 0.010** | **0.820 ± 0.015** |
+| XGBoost | 0.738 ± 0.014 | 0.774 ± 0.016 | 0.805 ± 0.017 |
+| VEGA (benchmark, whole dataset) | 0.800 | 0.824 | n/a |
+
+**Random Forest is the strongest model at default settings**, ahead of
+XGBoost on every metric and with the tightest fold-to-fold variance (bagging's
+variance-reduction advantage on a moderate-sized, low-dimensional dataset).
+XGBoost is close behind and would likely benefit most from tuning
+(`n_estimators`, `max_depth`, `learning_rate`, regularization), since its
+main strength (iterative error correction) needs more headroom than default
+settings give it here.
+
+**Logistic Regression underperforms even the untuned kNN baseline**,
+suggesting the relationship between these 8 descriptors and mutagenicity
+isn't well captured by a linear decision boundary. Kept in the comparison as
+the interpretable benchmark, consistent with the OECD's mechanistic
+interpretation principle, despite not being competitive on accuracy.
+
+**Random Forest closes roughly a third of the gap to VEGA** seen with kNN
+(F1 0.779 vs. VEGA's 0.824, compared to kNN's 0.745–0.748), using the same
+descriptor set — evidence that model choice, not just features, was
+limiting kNN's ceiling.
+
+## Open questions, updated
+
+- Would tuning XGBoost (or Random Forest) close more of the remaining gap to
+  VEGA, or is the descriptor set now the binding constraint?
+- Feature importances (Random Forest, XGBoost) vs. Logistic Regression
+  coefficients — do they agree on which descriptors matter most?  
