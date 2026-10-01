@@ -175,3 +175,38 @@ used going forward for the RDKit/SMILES prediction layer.
   what's achievable on this dataset regardless of features?
 - Feature importances (Random Forest) vs. Logistic Regression coefficients —
   do they agree on which descriptors matter most?  
+
+## RDKit prediction layer
+
+Built `src/descriptors.py` (SMILES → 8 descriptors, matching the training
+feature set) and `src/predict.py` (descriptors → scaled → Random Forest →
+prediction + confidence). Descriptor correctness was verified by comparing
+RDKit-computed values against a known training-set molecule's precomputed
+descriptors in the original CSV; values matched.
+
+### Case study: nitrobenzene
+
+Nitrobenzene (`O=[N+]([O-])c1ccccc1`, CAS 98-95-3) was used as a test case,
+since nitro groups are a commonly cited mutagenicity-associated structural
+feature. The model predicted **non-mutagenic (85% confidence)**.
+
+Checking against the dataset confirmed nitrobenzene is in the training set
+(row 5530), with a true experimental label of **non-mutagenic**, matching
+the model's prediction. (An initial exact-string SMILES lookup missed this
+row, since the dataset wrote the molecule with a different, but chemically
+equivalent, atom ordering; a canonical-SMILES comparison found it.)
+
+This is a useful illustration that structural alerts (like a nitro group)
+are statistical tendencies across many molecules, not deterministic rules
+for any individual molecule, context in the rest of the structure matters,
+and that lookups comparing molecules by SMILES string must canonicalize
+first, since the same molecule can be written multiple valid ways.
+
+## Next: applicability domain check
+
+`predict.py` currently returns a prediction for any valid SMILES, with no
+indication of whether the molecule resembles anything in the training set.
+The next phase adds a fingerprint-based (Tanimoto similarity) applicability
+domain check, following VEGA's approach, so predictions on truly novel
+molecules can be flagged as lower-confidence rather than presented with the
+same apparent certainty as predictions on well-represented chemical space.  
