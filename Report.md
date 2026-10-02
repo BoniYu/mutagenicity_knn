@@ -245,4 +245,45 @@ indication of whether the molecule resembles anything in the training set.
 The next phase adds a fingerprint-based (Tanimoto similarity) applicability
 domain check, following VEGA's approach, so predictions on truly novel
 molecules can be flagged as lower-confidence rather than presented with the
-same apparent certainty as predictions on well-represented chemical space.  
+same apparent certainty as predictions on well-represented chemical space. 
+
+## Applicability domain check
+
+A fingerprint-based applicability domain (AD) check was added, following
+VEGA's approach, since a trained model will produce a prediction for any
+valid molecule, including ones wildly different from anything it was
+trained on, with no indication that the prediction is unreliable.
+
+**Method:** Morgan fingerprints (radius=2, 2048 bits) computed for all
+5,758 training molecules. For a new SMILES, its fingerprint is compared
+against every training fingerprint via Tanimoto similarity
+(`DataStructs.BulkTanimotoSimilarity`), and the maximum similarity is
+taken as the molecule's closest match in the training set. A threshold of
+0.7 (matching VEGA's own threshold) determines whether a molecule is
+flagged as within or outside the model's applicability domain.
+
+### Case study: in-domain vs. out-of-domain
+
+| Molecule | Prediction | Confidence | Max similarity | In domain |
+|---|---|---|---|---|
+| Methyl hydroperoxide (`COO`) | Mutagenic | 79% | 1.00 | ✅ Yes |
+| Large porphyrin-like macrocycle | Mutagenic | 87% | 0.24 | ❌ No |
+
+The porphyrin-like molecule, structurally very different from the
+dataset's small organic molecules, received a confident-looking
+prediction (87% mutagenic) despite being far outside anything the model
+was trained on (similarity 0.24, well below the 0.70 threshold). Without
+the applicability domain check, this prediction would appear no less
+trustworthy than one made on a well-represented molecule. This is a
+concrete illustration of why QSAR predictions, per the OECD validation
+principles, should always be paired with a defined applicability domain,
+model confidence (`predict_proba`) alone does not indicate whether a
+molecule resembles the training data.
+
+## RDKit prediction layer: summary
+
+The full pipeline (`src/descriptors.py` → `src/predict.py` →
+`src/applicability_domain.py`) is complete: a SMILES string is parsed,
+converted to the 8 training descriptors, scaled and classified by the
+final Random Forest model, and paired with an applicability domain flag
+indicating whether the prediction should be trusted.
