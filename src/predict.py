@@ -4,6 +4,7 @@ import joblib
 import pandas as pd
 from pathlib import Path
 from src.descriptors import compute_descriptors, DESCRIPTOR_COLUMNS
+from src.applicability_domain import check_applicability_domain
 
 MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "best_classifier.pkl"
 model = joblib.load(MODEL_PATH)
@@ -26,12 +27,19 @@ def predict_mutagenicity(smiles: str) -> dict:
 
     label = "Mutagenic" if prediction == 1 else "Non-mutagenic"
     probability = probabilities[prediction]
+     # --- new ---
+    ad_result = check_applicability_domain(smiles)
+    # --- end new ---
 
     return {
         "prediction": int(prediction),
         "label": label,
         "probability": float(probability),
+        "in_domain": ad_result["in_domain"],           # new
+        "max_similarity": ad_result["max_similarity"],  # new
     }
+
+
 
 
 if __name__ == "__main__":
