@@ -202,6 +202,42 @@ for any individual molecule, context in the rest of the structure matters,
 and that lookups comparing molecules by SMILES string must canonicalize
 first, since the same molecule can be written multiple valid ways.
 
+## Feature importance comparison
+
+Random Forest importances (`.feature_importances_`) and Logistic Regression
+coefficients (fit on the full dataset) were compared to see whether the two
+model families agree on which descriptors matter most.
+
+| Descriptor | RF importance | LogReg coefficient |
+|---|---|---|
+| BertzCT | 0.151 | +0.996 |
+| qed | 0.149 | -0.277 |
+| BalabanJ | 0.133 | -0.052 |
+| MolWt | 0.125 | -0.095 |
+| MolMR | 0.121 | +0.787 |
+| MolLogP | 0.119 | +0.220 |
+| TPSA | 0.113 | +0.664 |
+| NumValenceElectrons | 0.088 | -2.028 |
+
+**Agreement:** BertzCT (molecular complexity) ranks highly in both models,
+with a positive LogReg coefficient, more structurally complex molecules
+tend to be predicted more mutagenic, a chemically plausible pattern.
+
+**Disagreement:** NumValenceElectrons has the *lowest* Random Forest
+importance but by far the *largest* Logistic Regression coefficient
+magnitude. This is explained by strong collinearity with MolWt
+(Pearson r = 0.949, confirmed directly). Logistic Regression, as a linear
+model, splits credit unstably between highly correlated features, while
+Random Forest's random feature subsetting at each split (`max_features=
+'sqrt'`) distributes importance more evenly across correlated descriptors
+(0.088 and 0.125 respectively, much closer than the LogReg coefficients).
+
+**Implication:** coefficient magnitude in a linear model should not be
+read as a direct measure of a descriptor's true chemical relevance without
+first checking for correlated features. This is a relevant caveat given
+the OECD's emphasis on genuine mechanistic interpretation (rather than
+statistical artifact) in QSAR validation.
+
 ## Next: applicability domain check
 
 `predict.py` currently returns a prediction for any valid SMILES, with no
