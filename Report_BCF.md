@@ -218,4 +218,96 @@ for tuning actually mattering.
   comparison with train/validation R² reported, overfitting risk
   especially worth watching given the small dataset (800 rows, 15
   features).
-- Random Forest's built-in OOB score as an additional sanity check.
+  
+## Random Forest and XGBoost (default)
+
+Evaluated via the same 10-fold CV, with `return_train_score=True` to
+check for overfitting. `StandardScaler` was tested and confirmed to have
+no effect on either model's results (tree-based splits are
+threshold-based, not distance-based) and was removed from both
+pipelines.
+
+| | Train R² | Validation R² | Gap |
+|---|---|---|---|
+| Random Forest | 0.960 | 0.721 | 0.239 |
+| XGBoost | 0.999 | 0.693 | 0.306 |
+
+Both models show substantial overfitting, far beyond what was seen with
+Linear Regression (gap 0.054) or tuned kNN (gap 0.092). This is
+consistent with the small dataset size: 800 rows and 15 features gives
+these flexible ensemble methods far less data to constrain against than
+mutagenicity's 5,758 rows did for the same model types and a smaller
+8-feature set.
+
+## Random Forest and XGBoost (tuned via RandomizedSearchCV)
+
+Tuned via `RandomizedSearchCV` (25 iterations, 10-fold CV, scoring=R²),
+searching primarily over complexity-limiting hyperparameters
+(`max_depth`, `min_samples_leaf`/`min_child_weight`, regularization).
+
+| | Train R² | Validation R² | Gap |
+|---|---|---|---|
+| Random Forest (tuned) | 0.935 | 0.732 | 0.203 |
+| **XGBoost (tuned)** | **0.913** | **0.734** | **0.179** |
+
+**XGBoost improved substantially** on both validation score and
+overfitting gap (0.306 → 0.179), and is now the best-performing model
+overall. **Random Forest improved only marginally** (gap 0.239 → 0.203);
+the search selected `max_depth=None` (unconstrained) despite capped
+options being available, suggesting bagging's inherent regularization is
+not as responsive to these hyperparameters as boosting's is.
+
+**Neither model fully eliminated overfitting.** This is treated as a
+genuine limitation of the dataset size (800 rows, 15 features) rather
+than a tuning failure: more training data would likely close this gap
+further than additional hyperparameter search could. Worth noting for
+context: even with the remaining gap, XGBoost's validation R² (0.734) is
+the strongest result across all four models tried.
+
+## Model comparison, summary
+
+| Model | RMSE | MAE | Validation R² | Train-Val Gap |
+|---|---|---|---|---|
+| Linear Regression | 0.937 | 0.745 | 0.490 | 0.054 |
+| kNN (k=7, tuned) | 0.756 | 0.570 | 0.669 | 0.092 |
+| Random Forest (tuned) | 0.679 | 0.502 | 0.732 | 0.203 |
+| **XGBoost (tuned)** | **0.679** | **0.505** | **0.734** | **0.179** |
+
+**XGBoost (tuned) is the final model**, with the best validation R² and
+the tightest overfitting gap among the two ensemble methods.
+
+## Why more data would likely help
+
+The remaining overfitting gap in both Random Forest (0.203) and XGBoost
+(0.179), even after tuning, is best explained by dataset size rather than
+insufficient hyperparameter search. A few reasons to expect more data
+specifically, not more tuning, to close this gap further:
+
+- **Row-to-feature ratio.** 800 rows for 15 features gives each tree
+  relatively few examples to learn robust splits from; mutagenicity's
+  5,758 rows for 8 features gave a much larger ratio, and its ensembles
+  showed far less overfitting (Random Forest's default gap there was
+  effectively 0, versus 0.203-0.239 here) despite using the same model
+  families and similar hyperparameter defaults.
+- **Hyperparameter tuning has a ceiling.** Constraining tree depth or
+  adding regularization can only prevent a model from *using* capacity
+  it doesn't have good data to support; it cannot manufacture the
+  additional examples needed to make deeper, more expressive trees
+  generalize reliably. The 25-iteration random search already explored
+  a wide range of constraints, including fairly shallow, heavily
+  regularized configurations, yet validation R² plateaued around 0.73.
+- **Precedent in this dataset's own behavior.** Linear Regression,
+  despite being the least flexible model tried, showed almost no
+  overfitting (gap 0.054), confirming the issue isn't data quality or
+  the models' inherent unsuitability, it's that the data is genuinely
+  limited relative to how expressive the better-performing models need
+  to be to capture BCF's non-linear structure.
+- **Practical implication:** with more labeled BCF data, the same tuned
+  XGBoost configuration would likely show both a higher validation R²
+  and a narrower train-validation gap, without changing the modeling
+  approach itself. This is a dataset-scale limitation rather than a
+  methodological one, worth stating plainly given the OECD's emphasis on
+  honest reporting of a model's limitations alongside its performance.
+
+  **Decision: XGBoost (tuned) is the final model**, used going forward for
+the BCF prediction layer.
