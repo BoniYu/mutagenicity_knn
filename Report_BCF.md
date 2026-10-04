@@ -84,14 +84,138 @@ the lower cluster is enriched in carboxylic-acid-containing molecules.
 - No other data quality issues found; the dataset required no cleaning
   beyond what was already done upstream.
 
+## Outlier check
+
+**Target:** a boxplot of `Experimental value [log(L/kg)]` showed no
+outliers, the full range (-1.70 to 5.69) falls within 1.5×IQR of the
+quartiles.
+
+**Features:** a boxplot across all 15 descriptors showed clear outliers
+in `BertzCT` (up to 3,402) and `MolWt` (up to 1,053), all other
+descriptors showed no notable outliers. The highest-BertzCT/MolWt rows
+were inspected individually:
+
+| SMILES (truncated) | BertzCT | MolWt | log(L/kg) |
+|---|---|---|---|
+| `O=S(=O)(O)c7cccc6c7(cc(N=Nc1...` | 3401.6 | 979.0 | 0.498 |
+| `O=S(=O)(O)c6cc5ccc(O)c(N=Nc1...` | 2841.8 | 786.9 | 1.851 |
+| `O=S(=O)(O)OCCS(=O)(=O)c4ccc(...` | 2739.0 | 903.9 | 0.541 |
+| `O=S(=O)(O)c5cc(ccc5(C=Cc1cc...` | 2603.6 | 881.0 | 0.960 |
+| `O([Sn](CC(c1ccccc1)(C)C)(CC...` | 1869.1 | 1052.7 | 2.863 |
+
+These are legitimate molecules, not data errors: large sulfonated azo
+dyes (repeated sulfonic acid groups, azo linkages, multiple aromatic
+rings) and one organotin compound. Despite their size and structural
+complexity, most have low-to-moderate BCF values. This suggests
+complexity/size alone does not drive bioaccumulation; their high
+polarity (multiple ionizable sulfonic acid groups) likely explains the
+low BCF despite large size, consistent with the carboxylic-acid-group
+finding above.
+
+**No rows were removed.** All identified outliers are genuine, informative
+data points, and the dataset is small enough (800 rows) that removing
+them would both shrink the training set and discard useful signal about
+how polarity, not size, governs bioaccumulation.  
+
+## Baseline model: Linear Regression
+
+Evaluated via 10-fold cross-validation (`KFold`, shuffle=True,
+random_state=42), using all 15 descriptors, standardised with
+`StandardScaler`.
+
+| Metric | Validation | Train |
+|---|---|---|
+| RMSE | 0.937 ± 0.085 | — |
+| MAE | 0.745 ± 0.044 | — |
+| R² | 0.490 ± 0.133 | 0.544 |
+
+**Context:** the target's standard deviation is 1.332, so an RMSE of
+0.937 (about 30% lower) confirms the model is learning real signal, not
+just predicting the mean. MAE of 0.745 in log space corresponds to
+predictions typically within roughly 5.6x of the true BCF value.
+
+**Overfitting check:** train R² (0.544) and validation R² (0.490) are
+close, a small, healthy gap, consistent with Linear Regression's limited
+flexibility (a constrained linear model can't easily memorize training
+noise). This establishes a reference point for later models: any model
+showing a much wider train/validation gap should be treated as overfit,
+a real risk given the dataset's small size (800 rows, 15 features).
+
+**R² variance across folds (±0.133) is notably wider than seen in
+mutagenicity's classification CV** (e.g. Random Forest's ±0.010 there),
+expected given BCF's much smaller fold sizes (~80 molecules vs. ~575).
+
 ## Next steps
 
-- Build `X` (features) and `y` (target).
-- Baseline model (likely kNN regression, mirroring the classification
-  project's structure).
-- Compare kNN Regressor, Linear Regression, Random Forest Regressor,
-  XGBoost Regressor via cross-validation (regression metrics: RMSE, MAE,
-  R²).
-- Given the small dataset size (800 rows vs. 5,758 for mutagenicity),
-  cross-validation will be used as the primary evaluation method rather
-  than a single train/test split.
+- kNN Regressor, Random Forest Regressor, XGBoost Regressor, same
+  10-fold CV comparison, with train/validation R² reported for each to
+  check for overfitting.
+- Random Forest's built-in OOB score as an additional sanity check.
+
+## kNN Regressor (default, k=5)
+
+| Metric | Linear Regression | kNN (k=5) |
+|---|---|---|
+| RMSE | 0.937 ± 0.085 | **0.764 ± 0.084** |
+| MAE | 0.745 ± 0.044 | **0.572 ± 0.060** |
+| Validation R² | 0.490 ± 0.133 | **0.662 ± 0.074** |
+| Train R² | 0.544 | 0.786 |
+
+kNN clearly outperforms Linear Regression on every metric, consistent
+with the EDA finding that BCF's relationship to the descriptors is
+non-linear and feature-interaction-driven (halogens and acid groups
+pulling in opposite directions), structure a single linear model can't
+capture well.
+
+**Overfitting check:** the train/validation R² gap (0.786 vs. 0.662,
+~0.12) is noticeably wider than Linear Regression's (0.544 vs. 0.490,
+~0.05). This is a mild overfitting signal, plausible given the small,
+untuned k=5 on a dataset of only 800 rows. A k-sweep is planned next, to
+find the validation-optimal k and check whether a larger k narrows this
+gap, mirroring the tuning approach used for mutagenicity's kNN, but here
+also explicitly checking the overfitting gap, not just validation score.
+
+## Next steps
+
+- k-sweep for kNN Regressor (range 1-30, smaller than mutagenicity's
+  1-99 given the much smaller dataset), tracking both validation
+  performance and the train/validation gap.
+- Random Forest Regressor and XGBoost Regressor, same 10-fold CV
+  comparison with train/validation R² reported.
+- Random Forest's built-in OOB score as an additional sanity check.
+
+## kNN Regressor: k-sweep (range 1-30, 10-fold CV)
+
+Train and validation R² tracked across k to both find the best k and
+check whether tuning narrows the overfitting gap seen at k=5.
+
+**k=1** (maximum overfitting, reference point): train R² = 1.0 (perfect,
+each point is its own nearest neighbor), validation R² = 0.50, a gap of
+0.50, the clearest possible illustration of memorization.
+
+As k increases, train R² declines steadily while validation R² rises
+sharply then plateaus around 0.66-0.667 from roughly k=5 to k=15, a
+broad, stable region rather than a sharp optimum.
+
+**Best k = 7:**
+
+| Metric | k=5 (default) | k=7 (tuned) |
+|---|---|---|
+| RMSE | 0.764 | **0.756** |
+| MAE | 0.572 | **0.570** |
+| Validation R² | 0.662 ± 0.074 | **0.669 ± 0.077** |
+| Train R² | 0.786 | 0.761 |
+| Train-validation gap | 0.124 | **0.092** |
+
+Unlike mutagenicity's kNN tuning (where k barely affected results
+under LOO), tuning k here gave both a small genuine performance
+improvement and a meaningfully narrower overfitting gap, a cleaner case
+for tuning actually mattering.
+
+## Next steps
+
+- Random Forest Regressor and XGBoost Regressor, same 10-fold CV
+  comparison with train/validation R² reported, overfitting risk
+  especially worth watching given the small dataset (800 rows, 15
+  features).
+- Random Forest's built-in OOB score as an additional sanity check.
