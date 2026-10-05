@@ -47,3 +47,5 @@ def bcf_endpoint(input: SMILESInput):
 
 
 
+# To run the FastAPI server, use the following command in your terminal:
+# uvicorn app.api.main:app --reload
